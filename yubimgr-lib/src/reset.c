@@ -23,7 +23,37 @@ SOFTWARE.
 
 #include <stdio.h>
 
-void reset()
+int reset()
 {
-    printf("reset\n");
+    FILE* in;
+
+    static const char* commands =
+        "scd reset\n"
+        "scd serialno undefined\n"
+        "scd apdu 00 A4 04 00 06 D2 76 00 01 24 01\n"
+        "scd apdu 00 20 00 81 08 40 40 40 40 40 40 40 40\n"
+        "scd apdu 00 20 00 81 08 40 40 40 40 40 40 40 40\n"
+        "scd apdu 00 20 00 81 08 40 40 40 40 40 40 40 40\n"
+        "scd apdu 00 20 00 81 08 40 40 40 40 40 40 40 40\n"
+        "scd apdu 00 20 00 83 08 40 40 40 40 40 40 40 40\n"
+        "scd apdu 00 20 00 83 08 40 40 40 40 40 40 40 40\n"
+        "scd apdu 00 20 00 83 08 40 40 40 40 40 40 40 40\n"
+        "scd apdu 00 20 00 83 08 40 40 40 40 40 40 40 40\n"
+        "scd apdu 00 e6 00 00\n"
+        "scd reset\n"
+        "scd serialno undefined\n"
+        "scd apdu 00 A4 04 00 06 D2 76 00 01 24 01\n"
+        "scd apdu 00 44 00 00\n"
+        "/bye\n";
+
+    in = popen("gpg-connect-agent >/dev/null", "w");
+    fputs(commands, in);
+    int err = pclose(in);
+
+    if (!err)
+        printf("Successfully reset the smartcard.\n");
+    else
+        printf("Error during smartcard reset (%d).\n", err);
+
+    return err;
 }

@@ -34,12 +34,12 @@ SOFTWARE.
 #define YUBIMGR_HIDDEN __attribute__((visibility("hidden")))
 
 YUBIMGR_EXPORT
-void bootstrap();
+int bootstrap();
 
 YUBIMGR_EXPORT
-void reset();
+int reset();
 
 YUBIMGR_EXPORT
-void status();
+int status();
 
 #endif  // YUBIMGR_H

@@ -24,9 +24,9 @@ SOFTWARE.
 #include <stdio.h>
 #include <stdlib.h>
 
-void status()
+int status()
 {
     int r = system("gpg --card-status");
 
-    (void)(r);
+    return r;
 }

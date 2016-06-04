@@ -23,7 +23,9 @@ SOFTWARE.
 
 #include <stdio.h>
 
-void bootstrap()
+int bootstrap()
 {
     printf("bootstrap\n");
+
+    return 0;
 }
