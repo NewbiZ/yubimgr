@@ -23,20 +23,7 @@ SOFTWARE.
 
 #include <stdio.h>
 
-#define STR(x) #x
-#define XSTR(x) STR(x)
-
-void bootstrap()
-{
-    printf("bootstrap\n");
-}
-
 void reset()
 {
     printf("reset\n");
-}
-
-void status()
-{
-    printf("status\n");
 }

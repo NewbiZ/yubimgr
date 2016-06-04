@@ -43,7 +43,9 @@ lib_LTLIBRARIES = \
 	libyubimgr.la
 
 libyubimgr_la_SOURCES = \
-	$(top_srcdir)/yubimgr-lib/src/yubimgr.c
+	$(top_srcdir)/yubimgr-lib/src/bootstrap.c \
+	$(top_srcdir)/yubimgr-lib/src/reset.c \
+	$(top_srcdir)/yubimgr-lib/src/status.c \
 
 # moduleincludedir = $(pkgincludedir)/module
 

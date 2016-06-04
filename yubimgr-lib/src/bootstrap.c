@@ -19,27 +19,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-#ifndef YUBIMGR_H
-#define YUBIMGR_H
+#include <yubimgr/yubimgr.h>
 
-#define YUBIMGR_VERSION_API_MAJOR 0
-#define YUBIMGR_VERSION_API_MINOR 0
-#define YUBIMGR_VERSION_API_PATCH 1
+#include <stdio.h>
 
-#define YUBIMGR_VERSION_ABI_CURRENT 0
-#define YUBIMGR_VERSION_ABI_REVISION 0
-#define YUBIMGR_VERSION_ABI_AGE 0
-
-#define YUBIMGR_EXPORT __attribute__((visibility("default")))
-#define YUBIMGR_HIDDEN __attribute__((visibility("hidden")))
-
-YUBIMGR_EXPORT
-void bootstrap();
-
-YUBIMGR_EXPORT
-void reset();
-
-YUBIMGR_EXPORT
-void status();
-
-#endif  // YUBIMGR_H
+void bootstrap()
+{
+    printf("bootstrap\n");
+}
