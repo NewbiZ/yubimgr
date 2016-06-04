@@ -1,9 +1,13 @@
+# Autotools generated files
+Makefile
 Makefile.in
 aclocal.m4
 autom4te.cache/
 compile
 config.guess
 config.sub
+config.log
+config.status
 configure
 depcomp
 install-sh
@@ -15,4 +19,14 @@ m4/ltversion.m4
 m4/lt~obsolete.m4
 missing
 test-driver
+.deps
+.libs
+libtool
+
+# Build temporaries
+*.la
+*.lo
+*.o
+yubimgr-bin/yubimgr-bin
+yubimgr-tests/test_dummy
 
