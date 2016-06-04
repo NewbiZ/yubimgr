@@ -21,17 +21,22 @@ SOFTWARE.
 */
 #include <yubimgr/yubimgr.h>
 
-#include <string.h>
+#include <stdio.h>
 
 #define STR(x) #x
 #define XSTR(x) STR(x)
 
-const char* version()
+void bootstrap()
 {
-
-    static const char* v = XSTR(YUBIMGR_VERSION_CURRENT)  "." \
-                           XSTR(YUBIMGR_VERSION_REVISION) "." \
-                           XSTR(YUBIMGR_VERSION_AGE);
-    return v;
+    printf("bootstrap\n");
 }
 
+void reset()
+{
+    printf("reset\n");
+}
+
+void status()
+{
+    printf("status\n");
+}

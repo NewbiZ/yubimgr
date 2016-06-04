@@ -1,0 +1,11 @@
+﻿---
+BasedOnStyle: Chromium
+AlignAfterOpenBracket: 'true'
+AlignConsecutiveAssignments: 'true'
+AlignOperands: 'true'
+AlignTrailingComments: 'true'
+BreakBeforeBraces: Linux
+ColumnLimit: '80'
+IndentWidth: '4'
+
+...

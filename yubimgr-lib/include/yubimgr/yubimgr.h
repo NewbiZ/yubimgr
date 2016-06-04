@@ -26,15 +26,20 @@ SOFTWARE.
 #define YUBIMGR_VERSION_API_MINOR 0
 #define YUBIMGR_VERSION_API_PATCH 0
 
-#define YUBIMGR_VERSION_ABI_CURRENT  0
+#define YUBIMGR_VERSION_ABI_CURRENT 0
 #define YUBIMGR_VERSION_ABI_REVISION 0
-#define YUBIMGR_VERSION_ABI_AGE      0
+#define YUBIMGR_VERSION_ABI_AGE 0
 
-#define YUBIMGR_EXPORT __attribute__ ((visibility("default")))
-#define YUBIMGR_HIDDEN __attribute__ ((visibility("hidden")))
+#define YUBIMGR_EXPORT __attribute__((visibility("default")))
+#define YUBIMGR_HIDDEN __attribute__((visibility("hidden")))
 
 YUBIMGR_EXPORT
-const char* version();
+void bootstrap();
 
-#endif // YUBIMGR_H
+YUBIMGR_EXPORT
+void reset();
 
+YUBIMGR_EXPORT
+void status();
+
+#endif  // YUBIMGR_H

@@ -30,3 +30,6 @@ libtool
 yubimgr-bin/yubimgr-bin
 yubimgr-tests/test_dummy
 
+# Editor temporaries
+*.swp
+*~
