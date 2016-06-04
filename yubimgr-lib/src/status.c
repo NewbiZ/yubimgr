@@ -22,8 +22,11 @@ SOFTWARE.
 #include <yubimgr/yubimgr.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 
 void status()
 {
-    printf("status\n");
+    int r = system("gpg --card-status");
+
+    (void)(r);
 }
