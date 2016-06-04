@@ -50,6 +50,7 @@ AM_PROG_CC_C_O
 # Check dependencies
 # ==================
 AC_CONFIG_MACRO_DIR([m4])
+AM_PATH_GPGME
 
 # Finish the configuration phase
 # ==============================

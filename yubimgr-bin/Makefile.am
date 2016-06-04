@@ -20,8 +20,7 @@
 
 AM_CPPFLAGS = \
 	-I$(top_srcdir)/yubimgr-lib/include \
-	-I$(top_srcdir)/yubimgr-bin/include \
-	${gpgme_CPPFLAGS}
+	-I$(top_srcdir)/yubimgr-bin/include
 
 AM_CFLAGS = \
 	-pedantic \
@@ -38,7 +37,8 @@ AM_CFLAGS = \
 	-fvisibility=hidden \
 	-Wl,--discard-all \
 	-g \
-	-rdynamic
+	-rdynamic \
+	${gpgme_CFLAGS}
 
 bin_PROGRAMS = \
 	yubimgr-bin

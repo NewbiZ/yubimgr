@@ -19,8 +19,7 @@
 # SOFTWARE.
 
 AM_CPPFLAGS = \
-	-I$(top_srcdir)/yubimgr-lib/include \
-	${gpgme_CPPFLAGS}
+	-I$(top_srcdir)/yubimgr-lib/include
 
 AM_CFLAGS = \
 	-pedantic \
@@ -37,7 +36,8 @@ AM_CFLAGS = \
 	-fvisibility=hidden \
 	-Wl,--discard-all \
 	-g \
-	-rdynamic
+	-rdynamic \
+	${gpgme_CFLAGS}
 
 lib_LTLIBRARIES = \
 	libyubimgr.la
