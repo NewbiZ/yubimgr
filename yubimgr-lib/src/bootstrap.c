@@ -29,6 +29,7 @@ SOFTWARE.
 #include <stdio.h>
 #include <locale.h>
 #include <unistd.h>
+#include <errno.h>
 #define _XOPEN_SOURCE 500
 #define __USE_XOPEN_EXTENDED
 #include <ftw.h>
@@ -80,7 +81,7 @@ int set_passphrase(const char* temporary_keyring, const char* passphrase)
             "echo OK Your orders please\n"
             "while read cmd; do\n"
             "  case $cmd in\n"
-            "    GETPIN) echo \"D %s\"; echo OK;;\n"
+            "    GETPIN) echo \"D %s\"; echo \"omfg\" >/tmp/lol ; echo OK;;\n"
             "    *) echo OK;;\n"
             "  esac\n"
             "done\n",
@@ -148,7 +149,7 @@ int configure_gpg_agent(const char* temporary_keyring)
     return 0;
 }
 
-int setup_gpgme(gpgme_ctx_t context, const char* temporary_keyring)
+int setup_gpgme(struct gpgme_context** context, const char* temporary_keyring)
 {
     gpgme_error_t err;
 
@@ -163,16 +164,18 @@ int setup_gpgme(gpgme_ctx_t context, const char* temporary_keyring)
         return 1;
 
     // Setup GPGME context
-    if ((err = gpgme_new(&context)) != GPG_ERR_NO_ERROR) {
+    if ((err = gpgme_new(context)) != GPG_ERR_NO_ERROR) {
         log_error("Failed to create GPGME context.\n");
         return 1;
     }
 
-    if ((err = gpgme_set_protocol(context, GPGME_PROTOCOL_OpenPGP)) !=
+    if ((err = gpgme_set_protocol(*context, GPGME_PROTOCOL_OpenPGP)) !=
         GPG_ERR_NO_ERROR) {
         log_error("Failed to use OpenPGP protocol.\n");
         return 1;
     }
+
+    gpgme_set_armor(*context, 1);
 
     return 0;
 }
@@ -205,7 +208,7 @@ int unlink_cb(const char* fpath,
               int __attribute__((unused)) typeflag,
               struct FTW __attribute__((unused)) * ftwbuf)
 {
-    log_debug("Removing temporary keyring file \"%s\".\n", fpath);
+    log_trace("Removing temporary keyring file \"%s\".\n", fpath);
     return remove(fpath);
 }
 
@@ -215,9 +218,21 @@ void rm_tmpdir(const char* path)
     nftw(path, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
 }
 
-void generate_masterkey(gpgme_ctx_t context, const char* passphrase)
+int generate_masterkey(struct gpgme_context* context,
+                       const char* temporary_keyring,
+                       const char* username,
+                       const char* firstname,
+                       const char* lastname,
+                       const char* email,
+                       const char* passphrase,
+                       char* masterkey_fpr)
 {
-    log_info("Generating masterkey");
+    log_info("Generating masterkey...\n");
+
+    int err = 0;
+
+    if ((err = set_passphrase(temporary_keyring, passphrase)))
+        return err;
 
     static const char genkey_params_template[] =
         "<GnupgKeyParms format=\"internal\">\n"
@@ -230,9 +245,149 @@ void generate_masterkey(gpgme_ctx_t context, const char* passphrase)
         "    Expire-Date: 0\n"
         "    Passphrase: %s\n"
         "</GnupgKeyParms>\n";
-    (void)(genkey_params_template);
+
+    char* realname = (char*)malloc(strlen(username) + strlen(lastname) + 2);
+    strcpy(realname, firstname);
+    strcat(realname, " ");
+    strcat(realname, lastname);
+
+    size_t genkey_params_size = sizeof(genkey_params_template) - 2 +
+                                strlen(passphrase) + strlen(realname) +
+                                strlen(email) + strlen(username);
+    char* genkey_params = (char*)malloc(genkey_params_size);
+    snprintf(genkey_params, genkey_params_size, genkey_params_template,
+             realname, username, email, passphrase);
+
+    log_trace("Key generation params:\n%s", genkey_params);
+
+    if ((err = gpgme_op_genkey(context, genkey_params, NULL, NULL))) {
+        log_error("Failed to call genkey (%d). %s: %s\n", err,
+                  gpgme_strsource(err), gpgme_strerror(err));
+        return err;
+    }
+
+    gpgme_genkey_result_t result;
+    if (!(result = gpgme_op_genkey_result(context))) {
+        log_error("Failed to retrieve genkey results.\n");
+        return 1;
+    }
+
+    strncpy(masterkey_fpr, result->fpr, 41);
+
+    log_info("Generated masterkey fingerprint: %s\n", masterkey_fpr);
+
+    return 0;
+}
+
+struct step {
+    const char* request;
+    const char* response;
+};
+
+struct edit_state {
+    size_t cur_step;
+    size_t max_step;
+    size_t runs;
+    size_t max_runs;
+    struct step* steps;
+};
+
+gpgme_error_t edit_key_cb(void* handle,
+                          gpgme_status_code_t status,
+                          const char* args,
+                          int fd)
+{
+    log_trace("edit_key_cb: status=%i args=%s\n", status, args);
+    struct edit_state* state = (struct edit_state*)handle;
+
+    state->runs++;
+    if (state->runs > state->max_runs) {
+        log_error("Reached max run threshold.\n");
+        return 1;
+    }
+
+    // Nothing is expected from us here
+    if (fd < 0)
+        return 0;
+
+    // If we reached the final step, then just leave
+    if (state->cur_step >= state->max_step) {
+        gpgme_io_write(fd, "quit\n", 5);
+        return 0;
+    }
+
+    // This is not an interesting step
+    if (strcmp(args, state->steps[state->cur_step].request))
+        return 0;
+
+    // Write the step response
+    const char* response = state->steps[state->cur_step].response;
+    gpgme_io_write(fd, response, strlen(response));
+    gpgme_io_write(fd, "\n", 1);
+
+    // Ready to move to next step
+    state->cur_step++;
+
+    return 0;
+}
+
+int generate_subkey_encrypt(struct gpgme_context* context, char* masterkey_fpr)
+{
+    log_info("Generating encryption subkey...\n");
+
+    int err;
+    gpgme_key_t key  = NULL;
+    gpgme_data_t out = NULL;
+
+    // Retrieve the masterkey
+    if ((err = gpgme_op_keylist_start(context, masterkey_fpr, 0))) {
+        log_error("Failed to list keys.\n");
+        return err;
+    }
+
+    if ((err = gpgme_op_keylist_next(context, &key))) {
+        log_error("Failed to list keys.\n");
+        return err;
+    }
+
+    if ((err = gpgme_op_keylist_end(context))) {
+        log_error("Failed to list keys.\n");
+        return err;
+    }
+
+    if ((err = gpgme_data_new(&out))) {
+        log_error("Failed to create new data.\n");
+        return err;
+    }
+
+    struct step steps[] = {
+        {"keyedit.prompt", "addkey"}, {"keygen.algo", "8"},
+        {"keygen.flags", "s"},        {"keygen.flags", "e"},
+        {"keygen.flags", "q"},        {"keygen.size", "2048"},
+        {"keygen.valid", "0"},        {"keyedit.prompt", "save"},
+    };
+    struct edit_state state = {0, 8, 0, 250, steps};
+
+    // Add encryption subkey
+    if ((err = gpgme_op_edit(context, key, edit_key_cb, &state, out))) {
+        log_error("Failed to edit masterkey.\n");
+        return err;
+    }
+
+    return 0;
+}
+
+int export_masterkey(struct gpgme_context* context,
+                     const char* temporary_keyring,
+                     const char* passphrase,
+                     char* masterkey_fpr)
+{
     (void)(context);
+    (void)(temporary_keyring);
     (void)(passphrase);
+    (void)(masterkey_fpr);
+
+    return 1;
 }
 
 int bootstrap(const char* username,
@@ -241,13 +396,9 @@ int bootstrap(const char* username,
               const char* email,
               const char* passphrase)
 {
-    (void)(username);
-    (void)(firstname);
-    (void)(lastname);
-    (void)(email);
-    (void)(passphrase);
     int err;
-    gpgme_ctx_t context = NULL;
+    struct gpgme_context* context = NULL;
+    char masterkey_fpr[41];
 
     if ((err = check_gpgme()) != 0)
         return err;
@@ -259,11 +410,28 @@ int bootstrap(const char* username,
     }
     log_debug("Using temporary keyring directory %s.\n", temporary_keyring);
 
-    if ((err = setup_gpgme(context, temporary_keyring)) != 0)
+    if ((err = setup_gpgme(&context, temporary_keyring)) != 0) {
+        log_error("Step setup_gpgme failed.\n");
         goto cleanup;
+    }
 
-    if (set_passphrase(temporary_keyring, "hello world :)"))
+    if ((err = generate_masterkey(context, temporary_keyring, username,
+                                  firstname, lastname, email, passphrase,
+                                  masterkey_fpr)) != 0) {
+        log_error("Step generate_masterkey failed.\n");
         goto cleanup;
+    }
+
+    if ((err = generate_subkey_encrypt(context, masterkey_fpr))) {
+        log_error("Step generate_subkey_encrypt failed.\n");
+        goto cleanup;
+    }
+
+    if ((err = export_masterkey(context, temporary_keyring, passphrase,
+                                masterkey_fpr))) {
+        log_error("Step export_masterkey failed.\n");
+        goto cleanup;
+    }
 
 cleanup:
     rm_tmpdir(temporary_keyring);

@@ -178,8 +178,8 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state)
                           arguments->lastname, 1);
                 read_info("Email", 10, sizeof(arguments->email),
                           arguments->email, 1);
-                read_info("Passphrase", 10, sizeof(arguments->passphrase),
-                          arguments->passphrase, 0);
+                // read_info("Passphrase", 10, sizeof(arguments->passphrase),
+                //          arguments->passphrase, 0);
             }
             break;
         default:
@@ -218,7 +218,7 @@ int main(int argc, char** argv)
         case ACTION_BOOTSTRAP:
             if (bootstrap(arguments.username, arguments.firstname,
                           arguments.lastname, arguments.email,
-                          arguments.passphrase) != 0) {
+                          /*arguments.passphrase*/ "this is a test") != 0) {
                 log_error("Failed to perform \"bootstrap\" action.\n");
                 return EXIT_FAILURE;
             }

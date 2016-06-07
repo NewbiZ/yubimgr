@@ -26,6 +26,12 @@ SOFTWARE.
 static enum LOG_LEVEL _log_level;
 static FILE* _log_file;
 
+static const char _TRACE_COLOR[] = "\033[38;5;238m[TRACE] ";
+static const char _DEBUG_COLOR[] = "\033[38;5;242m[DEBUG] ";
+static const char _ERROR_COLOR[] = "\033[31m[ERROR] ";
+static const char _INFO_COLOR[]  = "\033[0m[INFO ] ";
+static const char _NO_COLOR[]    = "\033[0m";
+
 void set_log_level(enum LOG_LEVEL level)
 {
     _log_level = level;
@@ -51,7 +57,11 @@ void log_trace(const char* str, ...)
     if (_log_level <= LOG_LEVEL_TRACE) {
         va_list args;
         va_start(args, str);
+        if (_log_file == stdout)
+            fputs(_TRACE_COLOR, stdout);
         vfprintf(_log_file, str, args);
+        if (_log_file == stdout)
+            fputs(_NO_COLOR, stdout);
         va_end(args);
     }
 }
@@ -61,7 +71,11 @@ void log_debug(const char* str, ...)
     if (_log_level <= LOG_LEVEL_DEBUG) {
         va_list args;
         va_start(args, str);
+        if (_log_file == stdout)
+            fputs(_DEBUG_COLOR, stdout);
         vfprintf(_log_file, str, args);
+        if (_log_file == stdout)
+            fputs(_NO_COLOR, stdout);
         va_end(args);
     }
 }
@@ -71,7 +85,11 @@ void log_info(const char* str, ...)
     if (_log_level <= LOG_LEVEL_INFO) {
         va_list args;
         va_start(args, str);
+        if (_log_file == stdout)
+            fputs(_INFO_COLOR, stdout);
         vfprintf(_log_file, str, args);
+        if (_log_file == stdout)
+            fputs(_NO_COLOR, stdout);
         va_end(args);
     }
 }
@@ -91,7 +109,11 @@ void log_error(const char* str, ...)
     if (_log_level <= LOG_LEVEL_ERROR) {
         va_list args;
         va_start(args, str);
+        if (_log_file == stdout)
+            fputs(_ERROR_COLOR, stdout);
         vfprintf(_log_file, str, args);
+        if (_log_file == stdout)
+            fputs(_NO_COLOR, stdout);
         va_end(args);
     }
 }
