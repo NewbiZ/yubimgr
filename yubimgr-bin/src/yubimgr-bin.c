@@ -24,6 +24,7 @@ SOFTWARE.
 #include <argp.h>
 
 #include <yubimgr/yubimgr.h>
+#include <yubimgr/logging.h>
 
 const char* program_version     = PACKAGE_STRING;
 const char* program_bug_address = PACKAGE_BUGREPORT;
@@ -115,15 +116,27 @@ int main(int argc, char** argv)
 
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
+    set_log_level(LOG_LEVEL_DEBUG);
+    set_log_file(stdout);
+
     switch (arguments.action) {
         case ACTION_STATUS:
-            status();
+            if (status() != 0) {
+                log_error("Failed to perform \"status\" action.\n");
+                return EXIT_FAILURE;
+            }
             break;
         case ACTION_RESET:
-            reset();
+            if (reset() != 0) {
+                log_error("Failed to perform \"reset\" action.\n");
+                return EXIT_FAILURE;
+            }
             break;
         case ACTION_BOOTSTRAP:
-            bootstrap();
+            if (bootstrap() != 0) {
+                log_error("Failed to perform \"bootstrap\" action.\n");
+                return EXIT_FAILURE;
+            }
             break;
     }
 

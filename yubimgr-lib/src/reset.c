@@ -20,6 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 #include <yubimgr/yubimgr.h>
+#include <yubimgr/logging.h>
 
 #include <stdio.h>
 
@@ -51,9 +52,9 @@ int reset()
     int err = pclose(in);
 
     if (!err)
-        printf("Successfully reset the smartcard.\n");
+        log_info("Successfully reset the smartcard.\n");
     else
-        printf("Error during smartcard reset (%d).\n", err);
+        log_error("Error during smartcard reset (%d).\n", err);
 
     return err;
 }

@@ -37,7 +37,7 @@ AM_CFLAGS = \
 	-Wl,--discard-all \
 	-g \
 	-rdynamic \
-	${gpgme_CFLAGS}
+	${GPGME_CFLAGS}
 
 lib_LTLIBRARIES = \
 	libyubimgr.la
@@ -45,12 +45,14 @@ lib_LTLIBRARIES = \
 libyubimgr_la_SOURCES = \
 	$(top_srcdir)/yubimgr-lib/src/bootstrap.c \
 	$(top_srcdir)/yubimgr-lib/src/reset.c \
-	$(top_srcdir)/yubimgr-lib/src/status.c
+	$(top_srcdir)/yubimgr-lib/src/status.c \
+	$(top_srcdir)/yubimgr-lib/src/logging.c
 
 # moduleincludedir = $(pkgincludedir)/module
 
 pkginclude_HEADERS = \
-	$(top_srcdir)/yubimgr-lib/include/yubimgr/yubimgr.h
+	$(top_srcdir)/yubimgr-lib/include/yubimgr/yubimgr.h \
+	$(top_srcdir)/yubimgr-lib/include/yubimgr/logging.h
 
 #moduleinclude_HEADERS = \
 #	$(top_srcdir)/yubimgr-lib/include/yubimgr/module/file1.h \
@@ -61,7 +63,7 @@ libyubimgr_la_LDFLAGS = \
 	-version-info $(LTVER)
 
 libyubimgr_la_LIBADD = \
-	${gpgme_LIBS}
+	$(GPGME_LIBS)
 
 MAINTAINERCLEANFILES = \
 	Makefile.in
