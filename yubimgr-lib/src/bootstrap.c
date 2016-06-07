@@ -32,6 +32,7 @@ SOFTWARE.
 #define _XOPEN_SOURCE 500
 #define __USE_XOPEN_EXTENDED
 #include <ftw.h>
+#include <sys/stat.h>
 
 int check_gpgme()
 {
@@ -63,9 +64,103 @@ int check_gpgme()
     return 0;
 }
 
-int setup_gpgme(gpgme_ctx_t context)
+int set_passphrase(const char* temporary_keyring, const char* passphrase)
+{
+    static char pinentry_path[256];
+    static const char* pinentry_filename = "pinentry";
+    strncpy(pinentry_path, temporary_keyring,
+            sizeof(pinentry_path) - sizeof(pinentry_filename) - 1);
+    strcat(pinentry_path, "/");
+    strcat(pinentry_path, pinentry_filename);
+    log_debug("Generating pinentry at \"%s\".\n", pinentry_path);
+    FILE* pinentry_file = fopen(pinentry_path, "w");
+    fprintf(pinentry_file,
+            "#!/bin/bash\n"
+            "\n"
+            "echo OK Your orders please\n"
+            "while read cmd; do\n"
+            "  case $cmd in\n"
+            "    GETPIN) echo \"D %s\"; echo OK;;\n"
+            "    *) echo OK;;\n"
+            "  esac\n"
+            "done\n",
+            passphrase);
+    fclose(pinentry_file);
+
+    if (chmod(pinentry_path, S_IRUSR | S_IWUSR | S_IXUSR)) {
+        log_error("Failed to chmod pinentry program.\n");
+        return 1;
+    }
+
+    return 0;
+}
+
+int configure_gpg(const char* temporary_keyring)
+{
+    // Setup GPG to automatically use "expert" mode
+    static char gpg_conf_path[256];
+    static const char* gpg_conf_filename = "gpg.conf";
+    strncpy(gpg_conf_path, temporary_keyring,
+            sizeof(gpg_conf_path) - sizeof(gpg_conf_filename) - 1);
+    strcat(gpg_conf_path, "/");
+    strcat(gpg_conf_path, gpg_conf_filename);
+    log_debug("Generating gpg.conf at \"%s\".\n", gpg_conf_path);
+    FILE* gpg_conf_file = fopen(gpg_conf_path, "w");
+    fputs("expert\n", gpg_conf_file);
+    fclose(gpg_conf_file);
+
+    return 0;
+}
+
+int configure_gpg_agent(const char* temporary_keyring)
+{
+    // Setup gpg-agent to use dummy pinentry program
+    static char gpg_agent_conf_path[256];
+    static const char* gpg_agent_conf_filename = "gpg-agent.conf";
+    strncpy(gpg_agent_conf_path, temporary_keyring,
+            sizeof(gpg_agent_conf_path) - sizeof(gpg_agent_conf_filename));
+    strcat(gpg_agent_conf_path, "/");
+    strcat(gpg_agent_conf_path, gpg_agent_conf_filename);
+    log_debug("Generatig gpg-agent.conf at \"%s\".\n", gpg_agent_conf_path);
+    FILE* gpg_agent_conf_file = fopen(gpg_agent_conf_path, "w");
+    fprintf(gpg_agent_conf_file, "pinentry-program %s/pinentry\n",
+            temporary_keyring);
+    fputs("allow-loopback-pinentry\n", gpg_agent_conf_file);
+    fclose(gpg_agent_conf_file);
+
+    // Make sure gpg-agent is running properly and configured to use our
+    // gpg-agent.conf
+    static char gpg_connect_agent_command[256];
+    snprintf(gpg_connect_agent_command, sizeof(gpg_connect_agent_command),
+             "gpg-connect-agent --homedir \"%s\" KILLAGENT /bye 2>&1",
+             temporary_keyring);
+    FILE* outp = popen(gpg_connect_agent_command, "r");
+    log_debug("Running command \"%s\".\n", gpg_connect_agent_command);
+    if (pclose(outp))
+        log_error("Failed to stop currently running gpg-agent.\n");
+    snprintf(gpg_connect_agent_command, sizeof(gpg_connect_agent_command),
+             "gpg-connect-agent --homedir \"%s\" /bye 2>&1", temporary_keyring);
+    outp = popen(gpg_connect_agent_command, "r");
+    log_debug("Running command \"%s\".\n", gpg_connect_agent_command);
+    if (pclose(outp))
+        log_error("Failed to stop currently running gpg-agent.\n");
+
+    return 0;
+}
+
+int setup_gpgme(gpgme_ctx_t context, const char* temporary_keyring)
 {
     gpgme_error_t err;
+
+    // Prepare the environment
+    unsetenv("GPG_AGENT_INFO");
+    setenv("GNUPGHOME", temporary_keyring, 1);
+
+    if (configure_gpg(temporary_keyring))
+        return 1;
+
+    if (configure_gpg_agent(temporary_keyring))
+        return 1;
 
     // Setup GPGME context
     if ((err = gpgme_new(&context)) != GPG_ERR_NO_ERROR) {
@@ -82,28 +177,27 @@ int setup_gpgme(gpgme_ctx_t context)
     return 0;
 }
 
-// Warning: this function is not reentrant.
-const char* mk_tmpdir()
+int mk_tmpdir(char* tmpdir, size_t size)
 {
-    const char* tmprootdir        = getenv("TMPDIR");
-    static const char* tmpnametpl = "tmp.yubimgr.XXXXXX";
-
+    const char* tmprootdir = getenv("TMPDIR");
     if (!tmprootdir)
-        tmprootdir = "/tmp";
+        tmprootdir          = "/tmp";
+    size_t tmprootdir_count = strlen(tmprootdir);
 
-    static char tmptpldir[256] = {0};
-    if (strlen(tmprootdir) + strlen(tmpnametpl) + 1 > sizeof(tmptpldir) - 1) {
-        log_error("Temporary directory name too long. Check $TMPDIR.");
-        return NULL;
+    static const char tmpnametpl[]       = "tmp.yubimgr.XXXXXX";
+    static const size_t tmpnametpl_count = sizeof(tmpnametpl) - 1;
+
+    // Account space count for '/' and \0
+    if (tmprootdir_count + tmpnametpl_count + 2 > size) {
+        log_error("Temporary directory name too long. Check your $TMPDIR.\n");
+        return 1;
     }
 
-    strncat(tmptpldir, tmprootdir, sizeof(tmptpldir) - 1);
-    strncat(tmptpldir, "/", 1);
-    strncat(tmptpldir, tmpnametpl, sizeof(tmptpldir) - strlen(tmptpldir) - 1);
+    strncpy(tmpdir, tmprootdir, size);
+    strncat(tmpdir, "/", 1);
+    strncat(tmpdir, tmpnametpl, size);
 
-    const char* tmpdir = mkdtemp(tmptpldir);
-
-    return tmpdir;
+    return mkdtemp(tmpdir) != 0;
 }
 
 int unlink_cb(const char* fpath,
@@ -111,6 +205,7 @@ int unlink_cb(const char* fpath,
               int __attribute__((unused)) typeflag,
               struct FTW __attribute__((unused)) * ftwbuf)
 {
+    log_debug("Removing temporary keyring file \"%s\".\n", fpath);
     return remove(fpath);
 }
 
@@ -120,22 +215,54 @@ void rm_tmpdir(const char* path)
     nftw(path, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
 }
 
-int bootstrap()
+void generate_masterkey(gpgme_ctx_t context, const char* passphrase)
 {
+    log_info("Generating masterkey");
+
+    static const char genkey_params_template[] =
+        "<GnupgKeyParms format=\"internal\">\n"
+        "    Key-Type: RSA\n"
+        "    Key-Length: 2048\n"
+        "    Key-Usage: sign\n"
+        "    Name-Real: %s\n"
+        "    Name-Comment: %s\n"
+        "    Name-Email: %s\n"
+        "    Expire-Date: 0\n"
+        "    Passphrase: %s\n"
+        "</GnupgKeyParms>\n";
+    (void)(genkey_params_template);
+    (void)(context);
+    (void)(passphrase);
+}
+
+int bootstrap(const char* username,
+              const char* firstname,
+              const char* lastname,
+              const char* email,
+              const char* passphrase)
+{
+    (void)(username);
+    (void)(firstname);
+    (void)(lastname);
+    (void)(email);
+    (void)(passphrase);
     int err;
     gpgme_ctx_t context = NULL;
 
     if ((err = check_gpgme()) != 0)
         return err;
 
-    const char* temporary_keyring;
-    if ((temporary_keyring = mk_tmpdir()) == NULL) {
+    static char temporary_keyring[256];
+    if (!mk_tmpdir(temporary_keyring, sizeof(temporary_keyring))) {
         log_error("Failed to create temporary keyring.\n");
         return 1;
     }
     log_debug("Using temporary keyring directory %s.\n", temporary_keyring);
 
-    if ((err = setup_gpgme(context)) != 0)
+    if ((err = setup_gpgme(context, temporary_keyring)) != 0)
+        goto cleanup;
+
+    if (set_passphrase(temporary_keyring, "hello world :)"))
         goto cleanup;
 
 cleanup:

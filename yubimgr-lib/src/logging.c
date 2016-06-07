@@ -36,6 +36,16 @@ enum LOG_LEVEL get_log_level()
     return _log_level;
 }
 
+void set_log_file(FILE* file)
+{
+    _log_file = file;
+}
+
+FILE* get_log_file()
+{
+    return _log_file;
+}
+
 void log_trace(const char* str, ...)
 {
     if (_log_level <= LOG_LEVEL_TRACE) {
@@ -84,14 +94,4 @@ void log_error(const char* str, ...)
         vfprintf(_log_file, str, args);
         va_end(args);
     }
-}
-
-void set_log_file(FILE* file)
-{
-    _log_file = file;
-}
-
-FILE* get_log_file()
-{
-    return _log_file;
 }
