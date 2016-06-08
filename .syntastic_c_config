@@ -1,0 +1,18 @@
+# Autotools
+-Iyubimgr-lib/include
+-DPACKAGE_STRING="yubimgr"
+-DPACKAGE_BUGREPORT="vallee.aurelien@gmail.com"
+-DPACKAGE_NAME="yubimgr 1.0.0"
+# Warnings
+-pedantic
+-W
+-Wall
+-Werror
+-Wpointer-arith
+-Winit-self
+-Wformat=2
+-Wcast-align
+-Wlogical-op
+-Wshadow
+-fvisibility=hidden
+-Wl,--discard-all
