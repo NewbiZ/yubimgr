@@ -2,6 +2,20 @@ YubiMgr
 ---------
 Bootstrap and manage YubiKeys OpenPGP/PIV applets.
 
+YubiMgr automates most of the steps required to use YubiKeys in corporate
+environments.
+
+Namely, YubiMgr will allow you to:
+
+- Generate a single OpenPGP master key (RSA/2048) for each user
+- Export the master key to an offline storage (secured physical vault)
+- Generate an encryption subkey (on the card)
+- Generate an authentication subkey (on the card)
+- Generate a signing subkey (on the card)
+- Generate an SSH public key (from the authentication subkey)
+- Generate an x509 CSR for use in your corporate PKI (from the authentication
+  subkey)
+
 Dependencies
 ------------
 In order to build yubimgr, you will need:
@@ -10,6 +24,14 @@ In order to build yubimgr, you will need:
 Authors
 -------
 - Aurelien Vallee <vallee.aurelien@gmail.com>
+
+Disclaimer
+----------
+YubiMgr is *NOT* meant to be run in an insecured environment. Clear text
+passphrases are stored in the process memory space during key generation, files
+are shredded whenever possible but non securely. You should only use this tool
+from a secured, offline, computer.
+Use at your own risks.
 
 Licensed under MIT/X
 --------------------
